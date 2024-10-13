@@ -20,14 +20,18 @@ export const SelectTraderAccounts: FC = () => {
     }, [publicKey, manifest]);
 
     const fetchTraderAccounts = useCallback(async () => {
-        if (!publicKey) {console.log('publicKey error');return};
-        if (!manifest) {console.log('manifest error');return};
-        if (!manifest.fields) {console.log('manifest.fields error');return};
-        if (!manifest.fields.wallet.publicKey) {console.log('manifest.fields.wallet.publicKey error');return};
+        if (!publicKey) { console.log('publicKey error'); return };
+        if (!manifest) { console.log('manifest error'); return };
+        if (!manifest.fields) { console.log('manifest.fields error'); return };
+        if (!manifest.fields.wallet.publicKey) { console.log('manifest.fields.wallet.publicKey error'); return };
 
         try {
 
             // TRG Fetching
+            const owner = publicKey;
+            const marketProductGroup = new PublicKey(mpgPubkey)
+            const trgs = await manifest.getTRGsOfOwner(owner, marketProductGroup);
+            setTrgsArr(trgs);
 
         } catch (error: any) {
             notify({ type: 'error', message: `Selecting Trader Account failed!`, description: error?.message });
@@ -39,6 +43,8 @@ export const SelectTraderAccounts: FC = () => {
         try {
 
             // TRG Creation
+            const marketProductGroup = new PublicKey(mpgPubkey)
+            await manifest.createTrg(marketProductGroup);
 
             fetchTraderAccounts();
         } catch (error: any) {
@@ -46,20 +52,31 @@ export const SelectTraderAccounts: FC = () => {
         }
     }, [fetchTraderAccounts, manifest]);
 
-    const handleSelection = useCallback(async (selectedValue: string) => {
+    const handleSelection = useCallback(async (selectedTrgPubkey: string) => {
 
-            // TRG Selection & Initiation
+        if (selectedTrgPubkey === "default") return;
+
+        // TRG Selection & Initiation
+        const trgPubkey = new PublicKey(selectedTrgPubkey);
+        const trader = new dexterity.Trader(manifest, trgPubkey);
+
+        await trader.update()
+        const marketProductGroup = new PublicKey(mpgPubkey)
+        await manifest.updateOrderbooks(marketProductGroup);
+
+        setTrader(trader);
+
 
     }, [manifest, setTrader]);
 
     return (
         <div className="flex flex-col items-center justify-center border border-white rounded-lg p-4 mt-4">
             <h1 className="text-2xl mb-4">Select or Create a Trader Account</h1>
-    
+
             {trgsArr.length > 0 ? (
                 <div className="w-full flex flex-col items-center space-y-4">
                     <div><TraderAccountDropdown accounts={trgsArr} onSelect={handleSelection} />
-                    <span className='ml-5 cursor-pointer' onClick={() => {handleCopy(selectedTrg, 'Trg Pubkey')}}>📋</span></div>
+                        <span className='ml-5 cursor-pointer' onClick={() => { handleCopy(selectedTrg, 'Trg Pubkey') }}>📋</span></div>
                     <Button
                         text="🔄 Load Trader Accounts"
                         onClick={fetchTraderAccounts}
